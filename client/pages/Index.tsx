@@ -83,6 +83,13 @@ export default function Index() {
     }
   };
 
+  const handleOpenSheet = () => {
+    if (sheetId) {
+      const sheetUrl = `https://docs.google.com/spreadsheets/d/${sheetId}`;
+      window.open(sheetUrl, '_blank');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="w-[560px] h-[1156px] bg-ios-gray-100 flex items-center justify-center mx-auto">
@@ -137,14 +144,22 @@ export default function Index() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <button
-              onClick={handleRefreshData}
-              disabled={isLoading}
-              className="px-4 py-2 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors mt-6"
-            >
-              {isLoading ? 'Loading...' : 'Reload'}
-            </button>
-
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={handleOpenSheet}
+                disabled={!sheetId}
+                className="px-4 py-2 bg-gray-300 text-black text-sm rounded hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              >
+                ↗︎
+              </button>
+              <button
+                onClick={handleRefreshData}
+                disabled={isLoading}
+                className="px-4 py-2 bg-gray-300 text-black text-sm rounded hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              >
+                {isLoading ? 'Loading...' : 'Reload'}
+              </button>
+            </div>
           </div>
           {/* 第2行：榜單類型和語言選擇 */}
           <div className="flex items-center justify-between">
@@ -179,7 +194,7 @@ export default function Index() {
             <button
               onClick={handleScreenshot}
               disabled={isScreenshotLoading}
-              className="px-4 py-2 bg-ios-blue text-white text-sm rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              className="px-4 py-2 bg-gray-300 text-black text-sm rounded hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
             >
               {isScreenshotLoading ? 'Generating...' : labels.exportScreenshot}
             </button>
