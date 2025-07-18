@@ -1,6 +1,12 @@
 import Papa from 'papaparse';
 import { AppData } from '../components/AppCard';
 
+// 新增返回类型，包含apps数据和chartType
+export interface AppsDataResult {
+  apps: AppData[];
+  chartType: 'overall' | 'category';
+}
+
 // 使用提供的 Google Sheet URL，轉換為 CSV 格式
 const DEFAULT_SHEET_ID = "1L17GQOKJ2rkjwE3S0IV4LPU3rYxyPf21E591kUt2xFA";
 
@@ -9,13 +15,23 @@ const getSheetId = (): string => {
   return localStorage.getItem('googleSheetId') || DEFAULT_SHEET_ID;
 };
 
-const getCsvUrl = (sheetId: string): string => {
-  return import.meta.env.VITE_SHEET_CSV_URL || `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=0`;
+// 從localStorage獲取GID，如果沒有則使用默認值0
+const getGid = (): string => {
+  return localStorage.getItem('googleSheetGid') || '0';
+};
+
+const getCsvUrl = (sheetId: string, gid: string = '0'): string => {
+  return import.meta.env.VITE_SHEET_CSV_URL || `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&gid=${gid}`;
 };
 
 // 更新Sheet ID並保存到localStorage
 export const updateSheetId = (newSheetId: string): void => {
   localStorage.setItem('googleSheetId', newSheetId);
+};
+
+// 更新GID並保存到localStorage
+export const updateGid = (newGid: string): void => {
+  localStorage.setItem('googleSheetGid', newGid);
 };
 
 console.log('Default Sheet ID:', DEFAULT_SHEET_ID);
@@ -32,18 +48,23 @@ const defaultApps: AppData[] = [
   },
 ];
 
-export const fetchAppsData = async (): Promise<AppData[]> => {
+export const fetchAppsData = async (): Promise<AppsDataResult> => {
   const sheetId = getSheetId();
-  const csvUrl = getCsvUrl(sheetId);
+  const gid = getGid();
+  const csvUrl = getCsvUrl(sheetId, gid);
   
   if (!csvUrl) {
     console.warn('VITE_SHEET_CSV_URL not configured, using default data');
-    return defaultApps;
+    return {
+      apps: defaultApps,
+      chartType: 'overall'
+    };
   }
 
   try {
     console.log('Fetching CSV from:', csvUrl);
     console.log('Sheet ID:', sheetId);
+    console.log('GID:', gid);
     
     const response = await fetch(csvUrl);
     console.log('Response status:', response.status);
@@ -77,6 +98,22 @@ export const fetchAppsData = async (): Promise<AppData[]> => {
             });
             console.log('All available column keys:', Array.from(allKeys));
             
+            // 檢測category字段來決定chartType
+            let detectedChartType: 'overall' | 'category' = 'overall';
+            if (results.data.length > 0) {
+              const firstRow = results.data[0] as any;
+              const category = firstRow.category || firstRow['category'];
+              console.log('Detected category:', category);
+              
+              if (category === 'photo-video') {
+                detectedChartType = 'category';
+              } else if (category === 'total') {
+                detectedChartType = 'overall';
+              }
+              // 其他情况保持默认的'overall'
+            }
+            console.log('Detected chart type:', detectedChartType);
+            
             // 直接使用您提供的列名順序
             const apps: AppData[] = results.data
               .slice(0, 8) // 只取前8個
@@ -108,17 +145,26 @@ export const fetchAppsData = async (): Promise<AppData[]> => {
               apps.push(defaultApps[0]); // 重複使用默認應用
             }
             
-            resolve(apps);
+            resolve({
+              apps,
+              chartType: detectedChartType
+            });
           } catch (error) {
             console.error('Error parsing CSV data:', error);
-            resolve(defaultApps);
+            resolve({
+              apps: defaultApps,
+              chartType: 'overall'
+            });
           }
         },
         error: (error) => {
           console.error('Error fetching CSV:', error);
           // 創建8個默認應用
           const fallbackApps = Array(8).fill(null).map(() => defaultApps[0]);
-          resolve(fallbackApps);
+          resolve({
+            apps: fallbackApps,
+            chartType: 'overall'
+          });
         },
       });
     });
@@ -127,6 +173,9 @@ export const fetchAppsData = async (): Promise<AppData[]> => {
     console.error('Error fetching data:', error);
     // 創建8個默認應用
     const fallbackApps = Array(8).fill(null).map(() => defaultApps[0]);
-    return fallbackApps;
+    return {
+      apps: fallbackApps,
+      chartType: 'overall'
+    };
   }
 }; 

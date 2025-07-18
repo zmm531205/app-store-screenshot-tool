@@ -4,7 +4,7 @@ import { AppCard, AppData } from "../components/AppCard";
 import { BottomNavItem } from "../components/BottomNavItem";
 import { labelsMap, Language } from "../components/labels";
 import { IndonesianAppStoreUI } from "../components/IndonesianAppStoreUI";
-import { fetchAppsData, updateSheetId } from "../services/dataService";
+import { fetchAppsData, updateSheetId, updateGid, AppsDataResult } from "../services/dataService";
 import { takeScreenshot, preloadImages } from "../services/screenshotService";
 
 export default function Index() {
@@ -13,9 +13,12 @@ export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [isScreenshotLoading, setIsScreenshotLoading] = useState(false);
   const [sheetId, setSheetId] = useState<string>(localStorage.getItem('googleSheetId') || '1L17GQOKJ2rkjwE3S0IV4LPU3rYxyPf21E591kUt2xFA');
+  const [gid, setGid] = useState<string>(localStorage.getItem('googleSheetGid') || '0');
   const [chartType, setChartType] = useState<'overall' | 'category'>(
     (localStorage.getItem('chartType') as 'overall' | 'category') || 'overall'
   );
+  const [autoDetectedChartType, setAutoDetectedChartType] = useState<'overall' | 'category'>('overall');
+  const [useAutoDetection, setUseAutoDetection] = useState<boolean>(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const labels = labelsMap[language];
@@ -24,11 +27,15 @@ export default function Index() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const appsData = await fetchAppsData();
-        setApps(appsData);
+        const result: AppsDataResult = await fetchAppsData();
+        setApps(result.apps);
+        setAutoDetectedChartType(result.chartType);
+        if (useAutoDetection) {
+          setChartType(result.chartType);
+        }
         
         // 預加載圖片以改善截圖質量
-        const imageUrls = appsData.map(app => app.imageSrc).filter(Boolean);
+        const imageUrls = result.apps.map(app => app.imageSrc).filter(Boolean);
         await preloadImages(imageUrls);
       } catch (error) {
         console.error('Failed to load apps data:', error);
@@ -56,14 +63,32 @@ export default function Index() {
     updateSheetId(newSheetId);
   };
 
+  const handleGidChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newGid = event.target.value.trim();
+    setGid(newGid);
+    updateGid(newGid);
+  };
+
+  const handleAutoDetectionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const useAuto = event.target.checked;
+    setUseAutoDetection(useAuto);
+    if (useAuto) {
+      setChartType(autoDetectedChartType);
+    }
+  };
+
   const handleRefreshData = async () => {
     setIsLoading(true);
     try {
-      const appsData = await fetchAppsData();
-      setApps(appsData);
+      const result: AppsDataResult = await fetchAppsData();
+      setApps(result.apps);
+      setAutoDetectedChartType(result.chartType);
+      if (useAutoDetection) {
+        setChartType(result.chartType);
+      }
       
       // 預加載圖片以改善截圖質量
-      const imageUrls = appsData.map(app => app.imageSrc).filter(Boolean);
+      const imageUrls = result.apps.map(app => app.imageSrc).filter(Boolean);
       await preloadImages(imageUrls);
     } catch (error) {
       console.error('Failed to load apps data:', error);
@@ -144,6 +169,16 @@ export default function Index() {
                 className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
+            <div className="w-20">
+              <label className="block text-sm font-medium text-gray-700 mb-1">GID:</label>
+              <input
+                type="text"
+                value={gid}
+                onChange={handleGidChange}
+                placeholder="0"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
             <div className="flex gap-2 mt-6">
               <button
                 onClick={handleOpenSheet}
@@ -162,19 +197,41 @@ export default function Index() {
             </div>
           </div>
           {/* 第2行：榜單類型和語言選擇 */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="space-y-3">
+            {/* 第一行：Chart Type 和 Auto-Detect */}
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Chart Type:</label>
                 <select
                   value={chartType}
                   onChange={handleChartTypeChange}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={useAutoDetection}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="overall">總榜</option>
                   <option value="category">分類榜</option>
                 </select>
+                {useAutoDetection && (
+                  <span className="text-xs text-gray-500">
+                    (自動檢測: {autoDetectedChartType === 'overall' ? '總榜' : '分類榜'})
+                  </span>
+                )}
               </div>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-1 text-sm font-medium text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={useAutoDetection}
+                    onChange={handleAutoDetectionChange}
+                    className="w-3 h-3"
+                  />
+                  自動檢測
+                </label>
+              </div>
+            </div>
+            
+            {/* 第二行：Language 和 Screenshot */}
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <label className="text-sm font-medium text-gray-700">Language:</label>
                 <select
@@ -189,15 +246,14 @@ export default function Index() {
                   <option value="vn">Vietnamese</option>
                 </select>
               </div>
+              <button
+                onClick={handleScreenshot}
+                disabled={isScreenshotLoading}
+                className="px-4 py-2 bg-gray-300 text-black text-sm rounded hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+              >
+                {isScreenshotLoading ? 'Generating...' : labels.exportScreenshot}
+              </button>
             </div>
-        
-            <button
-              onClick={handleScreenshot}
-              disabled={isScreenshotLoading}
-              className="px-4 py-2 bg-gray-300 text-black text-sm rounded hover:bg-blue-600 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-            >
-              {isScreenshotLoading ? 'Generating...' : labels.exportScreenshot}
-            </button>
           </div>
         </div>
       </div>
