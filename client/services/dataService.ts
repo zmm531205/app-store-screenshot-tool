@@ -8,7 +8,7 @@ export interface AppsDataResult {
 }
 
 // 使用提供的 Google Sheet URL，轉換為 CSV 格式
-const DEFAULT_SHEET_ID = "1L17GQOKJ2rkjwE3S0IV4LPU3rYxyPf21E591kUt2xFA";
+const DEFAULT_SHEET_ID = "1wF5AVV1rNrTkIf9tAt9WIfX1aC2uy4BdEirIGxKcWOw";
 
 // 從localStorage獲取Sheet ID，如果沒有則使用默認值
 const getSheetId = (): string => {
